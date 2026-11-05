@@ -299,63 +299,182 @@
   }
 
   function deleteSavedPlan(plan) {
-    if (!window.confirm(`「${plan.ticker}」の計画を削除しますか？\nこの操作は取り消せません。`)) return;
-    plans = plans.filter((p) => p.id !== plan.id);
-    persistPlans();
-    if (state.editingPlanId === plan.id) state.editingPlanId = 0;
-    update();
+    openModal({
+      title: "計画を削除",
+      text: `「${plan.ticker}」の計画を削除しますか？\nこの操作は取り消せません。`,
+      actions: [
+        { label: "キャンセル" },
+        {
+          label: "削除する",
+          kind: "danger",
+          onClick: () => {
+            plans = plans.filter((p) => p.id !== plan.id);
+            persistPlans();
+            if (state.editingPlanId === plan.id) state.editingPlanId = 0;
+            update();
+          }
+        }
+      ]
+    });
   }
 
-  function exportPlans() {
-    const data = { app: "SmartPosition", version: 1, exportedAt: new Date().toISOString(), plans: plans };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
+  // ---------------------------------------------------------------- modal
+  // window.confirm / ダウンロードが使えない環境（claude.ai の Artifact 枠内）でも動くよう、確認はページ内で行う。
+  let modalReturnFocus = null;
+
+  function openModal(opts) {
+    const modal = $("modal");
+    const area = $("modal-textarea");
+    $("modal-title").textContent = opts.title;
+    $("modal-text").textContent = opts.text || "";
+    setModalFeedback("");
+    area.hidden = !opts.textarea;
+    if (opts.textarea) {
+      area.value = opts.textarea.value || "";
+      area.readOnly = !!opts.textarea.readOnly;
+      area.placeholder = opts.textarea.placeholder || "";
+    }
+    const actions = $("modal-actions");
+    actions.replaceChildren();
+    opts.actions.forEach((a) => {
+      const cls = a.kind === "primary" ? "primary-btn" : a.kind === "danger" ? "danger-btn" : "outline-btn";
+      actions.append(el("button", {
+        type: "button",
+        class: cls,
+        onclick: async () => {
+          const keepOpen = a.onClick ? await a.onClick() : false;
+          if (keepOpen !== true) closeModal();
+        }
+      }, [a.label]));
+    });
+    modalReturnFocus = document.activeElement;
+    modal.hidden = false;
+    (opts.textarea && !opts.textarea.readOnly ? area : actions.lastElementChild).focus();
+  }
+
+  function closeModal() {
+    $("modal").hidden = true;
+    if (modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus();
+  }
+
+  function setModalFeedback(text, isError) {
+    const f = $("modal-feedback");
+    f.textContent = text;
+    f.classList.toggle("ng", !!isError);
+  }
+
+  // ---------------------------------------------------------------- backup
+  function backupFilename() {
     const d = new Date();
     const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    return `smartposition-backup-${stamp}.json`;
+  }
+
+  function hasClaudeRuntime() {
+    return typeof window.claude === "object" && window.claude !== null && typeof window.claude.use === "function";
+  }
+
+  async function saveBackupFile(json) {
+    const filename = backupFilename();
+    if (hasClaudeRuntime()) {
+      // claude.ai 上では downloads capability 経由で保存（閲覧者の確認が入る）
+      const downloads = await window.claude.use("downloads");
+      if (!downloads) {
+        setModalFeedback("この画面ではファイル保存が使えません。「コピー」でJSONをコピーして、メモ帳などに貼り付けて保存してください。", true);
+        return;
+      }
+      try {
+        await downloads.save({ filename: filename, data: json });
+        setModalFeedback("保存しました");
+      } catch (e) {
+        setModalFeedback("保存がキャンセルされたか、失敗しました。「コピー」も使えます。", true);
+      }
+      return;
+    }
+    const blob = new Blob([json], { type: "application/json" });
+    const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `smartposition-backup-${stamp}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setModalFeedback("ダウンロードを開始しました");
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setModalFeedback("コピーしました");
+    } catch (e) {
+      const area = $("modal-textarea");
+      area.focus();
+      area.select();
+      setModalFeedback("自動コピーできませんでした。選択済みなので Ctrl+C でコピーしてください。", true);
+    }
+  }
+
+  function exportPlans() {
+    const json = JSON.stringify({ app: "SmartPosition", version: 1, exportedAt: new Date().toISOString(), plans: plans }, null, 2);
+    openModal({
+      title: "バックアップを書き出す",
+      text: `保存済みの計画 ${plans.length}件を JSON にしました。\n保存しておくと、別のPCやブラウザで「バックアップを読み込む」から復元できます。`,
+      textarea: { value: json, readOnly: true },
+      actions: [
+        { label: "閉じる" },
+        { label: "コピー", onClick: async () => { await copyText(json); return true; } },
+        { label: "ファイルに保存", kind: "primary", onClick: async () => { await saveBackupFile(json); return true; } }
+      ]
+    });
+  }
+
+  function openImportDialog() {
+    openModal({
+      title: "バックアップを読み込む",
+      text: "書き出した JSON ファイルを選ぶか、JSON の中身を下に貼り付けてください。\n今ある計画は消えず、読み込んだ計画が追加されます。",
+      textarea: { value: "", placeholder: "ここに JSON を貼り付け" },
+      actions: [
+        { label: "キャンセル" },
+        { label: "ファイルを選ぶ", onClick: () => { $("import-file").click(); return true; } },
+        { label: "貼り付けた内容を読み込む", kind: "primary", onClick: () => !importText($("modal-textarea").value) }
+      ]
+    });
   }
 
   const NUMERIC_FIELDS = ["totalMaxLoss", "tradeMaxLoss", "currentPrice", "p1Price", "e1Price", "p2Price", "e2Price", "e3Price", "l1Price",
     "finalAverageCost", "allFilledProfitAtP1", "allFilledProfitAtP2", "allFilledLossAtL1"];
 
-  function importPlans(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      let incoming;
-      try {
-        const data = JSON.parse(reader.result);
-        incoming = Array.isArray(data) ? data : data.plans;
-        if (!Array.isArray(incoming)) throw new Error("plans がありません");
-      } catch (e) {
-        showBanner("バックアップファイルを読み込めませんでした（SmartPosition の JSON ではありません）");
-        return;
-      }
-      let added = 0;
-      incoming.forEach((p) => {
-        if (!p || typeof p.ticker !== "string" || !NUMERIC_FIELDS.every((f) => typeof p[f] === "number")) return;
-        const entity = Object.assign({}, p, {
-          id: nextPlanId(),
-          ticker: p.ticker.slice(0, 20),
-          note: String(p.note || "").slice(0, 500),
-          n: Number(p.n) || 1,
-          useThreeEntries: !!p.useThreeEntries,
-          e1Shares: Number(p.e1Shares) || 0,
-          e2Shares: Number(p.e2Shares) || 0,
-          e3Shares: Number(p.e3Shares) || 0,
-          updatedAt: Number(p.updatedAt) || Date.now()
-        });
-        plans.push(entity);
-        added++;
-      });
-      persistPlans();
-      showBanner(`${added}件の計画を読み込みました`);
-    };
-    reader.readAsText(file);
+  /** 読み込めたら true。失敗時はダイアログ内にエラーを表示して false。 */
+  function importText(text) {
+    let incoming;
+    try {
+      const data = JSON.parse(text);
+      incoming = Array.isArray(data) ? data : data.plans;
+      if (!Array.isArray(incoming)) throw new Error("plans がありません");
+    } catch (e) {
+      setModalFeedback("読み込めませんでした（SmartPosition のバックアップ JSON ではありません）", true);
+      return false;
+    }
+    let added = 0;
+    incoming.forEach((p) => {
+      if (!p || typeof p.ticker !== "string" || !NUMERIC_FIELDS.every((f) => typeof p[f] === "number" && Number.isFinite(p[f]))) return;
+      plans.push(Object.assign({}, p, {
+        id: nextPlanId(),
+        ticker: p.ticker.slice(0, 20),
+        note: String(p.note || "").slice(0, 500),
+        n: Number(p.n) || 1,
+        useThreeEntries: !!p.useThreeEntries,
+        p2MarginBias: typeof p.p2MarginBias === "number" ? p.p2MarginBias : 0.45,
+        e1Shares: Number(p.e1Shares) || 0,
+        e2Shares: Number(p.e2Shares) || 0,
+        e3Shares: Number(p.e3Shares) || 0,
+        updatedAt: Number(p.updatedAt) || Date.now()
+      }));
+      added++;
+    });
+    persistPlans();
+    showBanner(`${added}件の計画を読み込みました`);
+    return true;
   }
 
   // ---------------------------------------------------------------- UI helpers
@@ -798,14 +917,24 @@
       renderSavedPlans();
     });
     $("export-plans").addEventListener("click", exportPlans);
-    $("import-plans").addEventListener("click", () => $("import-file").click());
+    $("import-plans").addEventListener("click", openImportDialog);
     $("import-file").addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
-      if (file) importPlans(file);
       e.target.value = "";
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (importText(String(reader.result))) closeModal();
+      };
+      reader.readAsText(file);
+    });
+    $("modal").addEventListener("click", (e) => {
+      if (e.target === $("modal")) closeModal();
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && state.tab !== "calculator") switchTab("calculator");
+      if (e.key !== "Escape") return;
+      if (!$("modal").hidden) closeModal();
+      else if (state.tab !== "calculator") switchTab("calculator");
     });
     new ResizeObserver(() => drawChart()).observe($("chart-wrap"));
   }

@@ -232,6 +232,16 @@
     </nav>
   </div>
 
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title"></h2>
+      <p id="modal-text"></p>
+      <textarea id="modal-textarea" class="mono" rows="8" spellcheck="false" hidden></textarea>
+      <p class="modal-feedback" id="modal-feedback" role="status"></p>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
   <script src="js/engine.js"></script>
   <script src="js/chart.js"></script>
   <script src="js/app.js"></script>
