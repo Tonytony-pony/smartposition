@@ -14,7 +14,7 @@
   function defaultInput() {
     return {
       ticker: "NVDA",
-      totalMaxLoss: 200000,
+      totalMaxLoss: 4000,
       n: 1,
       currentPrice: 595,
       useThreeEntries: true,

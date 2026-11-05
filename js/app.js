@@ -36,7 +36,7 @@
 
   // ---------------------------------------------------------------- presets
   const PRESETS = [
-    { name: "標準モデル (574/532/501)", ticker: "NVDA", note: "P1:611 / P2:571 / L1:480 反発3段", totalMaxLoss: "200000", n: "1", currentPrice: "595", useThreeEntries: true, p1Price: "611", e1Price: "574", p2Price: "571", e2Price: "532", e3Price: "501", l1Price: "480" },
+    { name: "標準モデル (574/532/501)", ticker: "NVDA", note: "P1:611 / P2:571 / L1:480 反発3段", totalMaxLoss: "4000", n: "1", currentPrice: "595", useThreeEntries: true, p1Price: "611", e1Price: "574", p2Price: "571", e2Price: "532", e3Price: "501", l1Price: "480" },
     { name: "AAPL 押し目3段 ($220帯)", ticker: "AAPL", note: "サポートライン3箇所での分割エントリー", totalMaxLoss: "4000", n: "1", currentPrice: "228", useThreeEntries: true, p1Price: "235", e1Price: "222", p2Price: "220", e2Price: "212", e3Price: "204", l1Price: "196" },
     { name: "TSLA 反発2段 ($250帯)", ticker: "TSLA", note: "E1・E2の2段階エントリー計画", totalMaxLoss: "6000", n: "1", currentPrice: "262", useThreeEntries: false, p1Price: "275", e1Price: "250", p2Price: "247", e2Price: "232", e3Price: "218", l1Price: "215" }
   ];
@@ -47,7 +47,7 @@
       editingPlanId: 0,
       ticker: "NVDA",
       note: "反発3段階スケールイン計画",
-      totalMaxLossText: "200000",
+      totalMaxLossText: "4000",
       nText: "1",
       currentPriceText: "595",
       useThreeEntries: true,
@@ -74,11 +74,16 @@
     "p1PriceText", "e1PriceText", "p2PriceText", "e2PriceText", "e3PriceText", "l1PriceText", "p2MarginBias",
     "manualE1Shares", "manualE2Shares", "manualE3Shares"];
 
-  // 下書きの形式。2 = スライダー既定値が 1:2:3（0.5）になった版。旧版の下書きはスライダーだけ既定値に戻す。
-  const DRAFT_MODEL = 2;
+  // 下書きの形式。2 = スライダー既定値が 1:2:3（0.5）になった版、3 = 総額の既定値が 4000 になった版。
+  const DRAFT_MODEL = 3;
   const storedDraft = store.get(KEY.draft, {}) || {};
   const state = Object.assign(defaultState(), pick(storedDraft, DRAFT_FIELDS));
-  if (storedDraft.model !== DRAFT_MODEL) {
+  const draftModel = Number(storedDraft.model) || 1;
+  if (draftModel < 3 && state.totalMaxLossText === "200000") {
+    // 旧既定値のまま使っていた下書きだけ新しい既定値にする（自分で入れた金額は残す）
+    state.totalMaxLossText = "4000";
+  }
+  if (draftModel < 2) {
     state.p2MarginBias = E.DEFAULT_BIAS;
     state.manualE1Shares = null;
     state.manualE2Shares = null;
@@ -679,7 +684,7 @@
   }
 
   function stageMeta(st) {
-    return `累計 ${st.cumulativeShares}株 (平均 ${E.formatNumber(st.averageCost)}) | 投資 ¥${E.formatCurrency(st.cumulativeInvestment)}`;
+    return `累計 ${st.cumulativeShares}株 (平均 ${E.formatNumber(st.averageCost)}) | 投資 $${E.formatCurrency(st.cumulativeInvestment)}`;
   }
 
   function renderPatterns(out, input) {
