@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartPosition — ナンピン・分割買い下がり資金管理シミュレーター</title>
+  <meta name="description" content="分割買いエントリー（E1・E2・E3）の最適購入株数と、利確・損切りの損益を算出・可視化するトレード計画ツール。データはお使いのブラウザ内だけに保存されます。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230c2d48'/%3E%3Cpath d='M10 18 L24 34 L34 26 L46 44 L54 30' fill='none' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='46' cy='44' r='5' fill='%2310b981'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // テーマのちらつき防止（保存済みのテーマを先に適用）
+    try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="top-header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">SP</div>
+      <div>
+        <h1>SmartPosition</h1>
+        <p class="subtitle">PRECISION SCALED ENTRY &amp; RISK ENGINE</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="chip-btn" id="theme-toggle"></button>
+    </div>
+  </header>
+
+  <div class="status-banner" id="status-banner" role="status" hidden>
+    <span id="status-text"></span>
+    <button type="button" id="status-close" aria-label="閉じる">×</button>
+  </div>
+
+  <main>
+    <!-- ================= 計算・チャート ================= -->
+    <section id="tab-calculator" aria-label="計算・チャート">
+      <div class="workspace">
+        <div class="col col-left">
+
+          <!-- INPUT 1 -->
+          <section class="card" id="risk-card">
+            <div class="card-title">INPUT 1 - 許容損失額</div>
+            <div class="sub-box">
+              <div class="label">本トレードにおける損失許容額 (総額 ÷ (3n+n))</div>
+              <div class="big-value mono" id="trade-max-loss-value">0</div>
+              <div class="progress" id="loss-progress"><div class="bar"></div></div>
+              <div class="kv-row">
+                <span class="label">計算上のL1損失額</span>
+                <span class="loss-value mono" id="actual-l1-loss-value">-0</span>
+              </div>
+              <div class="status-line" id="loss-status"></div>
+            </div>
+
+            <button type="button" class="collapse-head" id="input1-toggle" aria-expanded="false" aria-controls="input1-body">
+              <span id="input1-summary"></span>
+              <span class="toggle-label" id="input1-toggle-label">▼ 変更</span>
+            </button>
+            <div class="input1-body" id="input1-body" hidden>
+              <label class="field">
+                <span>総額の損失許容額</span>
+                <input type="text" class="price" id="in-total" inputmode="decimal" autocomplete="off">
+              </label>
+              <label class="field">
+                <span>n (分割係数)</span>
+                <div class="stepper">
+                  <button type="button" id="n-minus">n - 1</button>
+                  <input type="text" class="price" id="in-n" inputmode="numeric" autocomplete="off">
+                  <button type="button" id="n-plus">n + 1</button>
+                </div>
+              </label>
+              <div class="hint" id="divisor-hint"></div>
+            </div>
+          </section>
+
+          <!-- INPUT 2 -->
+          <section class="card" id="price-card">
+            <div class="card-title">INPUT 2 - 銘柄・エントリー＆決済ライン設定</div>
+            <div class="two-col">
+              <label class="field">
+                <span>ティッカー</span>
+                <input type="text" class="ticker" id="in-ticker" autocomplete="off" spellcheck="false">
+              </label>
+              <label class="field">
+                <span>現在値</span>
+                <input type="text" class="price" id="in-current" inputmode="decimal" autocomplete="off">
+              </label>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <strong id="mode-label"></strong>
+                <span class="hint">反発ラインを2か所(E1,E2)または3か所(E1,E2,E3)から選択</span>
+              </div>
+              <label class="switch" title="3段階エントリー">
+                <input type="checkbox" id="in-three" aria-label="3段階エントリー">
+                <span class="track"></span>
+              </label>
+            </div>
+
+            <div class="section-label">利確・損切ライン (P1・P2・L1)</div>
+            <div class="ladder">
+              <label class="ladder-row">
+                <span class="ladder-badge profit">P1 利確<small>E1より上</small></span>
+                <input type="text" class="price" id="in-p1" inputmode="decimal" autocomplete="off" aria-label="P1 利確ライン">
+              </label>
+              <label class="ladder-row">
+                <span class="ladder-badge profit">P2 利確<small>E1の少し下</small></span>
+                <input type="text" class="price" id="in-p2" inputmode="decimal" autocomplete="off" aria-label="P2 利確ライン">
+              </label>
+              <label class="ladder-row">
+                <span class="ladder-badge loss">L1 損切<small id="l1-sub">E3より下</small></span>
+                <input type="text" class="price" id="in-l1" inputmode="decimal" autocomplete="off" aria-label="L1 損切ライン">
+              </label>
+            </div>
+
+            <div class="section-label" id="entry-section-label"></div>
+            <div class="ladder">
+              <label class="ladder-row">
+                <span class="ladder-badge entry">E1 買い<small>第1反発</small></span>
+                <input type="text" class="price" id="in-e1" inputmode="decimal" autocomplete="off" aria-label="E1 第1反発買いライン">
+              </label>
+              <label class="ladder-row">
+                <span class="ladder-badge entry">E2 買い<small>第2反発</small></span>
+                <input type="text" class="price" id="in-e2" inputmode="decimal" autocomplete="off" aria-label="E2 第2反発買いライン">
+              </label>
+              <label class="ladder-row" id="e3-row">
+                <span class="ladder-badge entry">E3 買い<small>第3反発</small></span>
+                <input type="text" class="price" id="in-e3" inputmode="decimal" autocomplete="off" aria-label="E3 第3反発買いライン">
+              </label>
+            </div>
+
+            <label class="field" style="margin-top:14px">
+              <span>戦略メモ (任意・保存時に一覧表示)</span>
+              <textarea id="in-note" rows="2"></textarea>
+            </label>
+
+            <div class="msg-box error" id="validation-box" hidden></div>
+            <div class="msg-box warn" id="warning-box" hidden></div>
+          </section>
+        </div>
+
+        <div class="col col-right">
+          <!-- チャート -->
+          <section class="card" id="chart-card">
+            <div class="card-head-row">
+              <div>
+                <div class="card-title" style="margin-bottom:2px">TACTICAL PRICE MAP</div>
+                <h2 class="card-heading" id="chart-heading"></h2>
+              </div>
+              <span class="mode-chip" id="chart-mode-chip"></span>
+            </div>
+            <div class="scenario-chips" id="scenario-chips" role="toolbar" aria-label="Exitシナリオ"></div>
+            <div class="chart-wrap" id="chart-wrap">
+              <canvas id="chart-canvas" role="img" aria-label="エントリー玉数・決済ライン軌道図"></canvas>
+            </div>
+            <div class="chart-empty" id="chart-empty" hidden>価格ラインの順序エラーを解消すると軌道マップが描画されます</div>
+            <div class="legend" id="chart-legend">
+              <span><i style="background:var(--primary)"></i>買いエントリー (E1〜E3 &amp; 株数)</span>
+              <span><i style="background:var(--secondary)"></i>利確ターゲット (P1・P2)</span>
+              <span><i style="background:var(--tertiary)"></i>平均取得単価 (Avg ≤ P2)</span>
+              <span><i style="background:var(--error)"></i>損切ライン (L1)</span>
+              <span><i style="background:var(--current)"></i>現在値</span>
+            </div>
+          </section>
+
+          <!-- 株数・損益 -->
+          <section class="card" id="alloc-card">
+            <div class="card-head-row">
+              <div>
+                <div class="card-title" style="margin-bottom:2px">OUTPUT - 適正エントリー株数</div>
+                <h2 class="card-heading" id="alloc-heading"></h2>
+                <span class="manual-badge" id="manual-badge" hidden>手動調整中</span>
+              </div>
+              <button type="button" class="text-btn" id="reset-optimal" hidden>⟳ 最適値に戻す</button>
+            </div>
+            <div class="share-list" id="share-list"></div>
+
+            <div class="pnl-head">
+              <div class="card-title" style="margin-bottom:2px">約定パターン別 Exit損益シミュレーション</div>
+              <h3 class="card-heading">約定＆反発シナリオ（全6パターン）</h3>
+              <div class="hint">現実的に発生し得るExitパターンのみを算出・表示しています</div>
+            </div>
+            <div id="pattern-rows"></div>
+
+            <div class="save-row">
+              <button type="button" class="primary-btn" id="save-plan">この銘柄の計画を保存</button>
+              <button type="button" class="outline-btn" id="duplicate-plan" hidden title="新規として複製">⧉ 新規として複製</button>
+            </div>
+          </section>
+        </div>
+      </div>
+      <footer class="site-footer">
+        入力内容と保存した計画は、このブラウザ内（localStorage）だけに保存されます。サーバーへは送信されません。<br>
+        本ツールは計算補助であり、投資助言ではありません。売買の判断はご自身の責任で行ってください。
+      </footer>
+    </section>
+
+    <!-- ================= 保存済み銘柄 ================= -->
+    <section id="tab-saved" aria-label="保存済み銘柄" hidden>
+      <div class="saved-wrap">
+        <div class="saved-toolbar">
+          <input type="search" id="saved-search" placeholder="ティッカーまたは戦略メモで検索..." aria-label="検索">
+          <button type="button" class="outline-btn" id="export-plans">⬇ バックアップを書き出す</button>
+          <button type="button" class="outline-btn" id="import-plans">⬆ バックアップを読み込む</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden>
+        </div>
+        <p class="saved-note">保存先はこのブラウザだけです。別のPCやブラウザへ移すときは、バックアップ（JSON）を書き出して読み込んでください。</p>
+        <div class="plan-grid" id="plan-grid"></div>
+        <div class="empty-state" id="plans-empty" hidden>
+          <h2>保存されたトレード計画はまだありません</h2>
+          <p>計算画面でティッカーと価格ラインを入力し、「この銘柄の計画を保存」をクリックすると一覧管理・比較ができます。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="bottom-area">
+    <div class="slider-dock" id="slider-dock">
+      <div class="dock-head">
+        <strong>玉数配分バランス (E1重視 ↔ 下値利確重視)</strong>
+        <span class="ratio mono" id="ratio-value"></span>
+      </div>
+      <input type="range" id="bias-slider" min="0" max="1" step="0.01" aria-label="玉数配分バランス">
+      <div class="dock-foot">
+        <span id="min-ratio-label"></span>
+        <span>下値平均単価引下げ ▶</span>
+      </div>
+    </div>
+    <nav class="bottom-nav" role="tablist" aria-label="画面切り替え">
+      <button type="button" class="nav-tab" role="tab" id="nav-calculator" aria-selected="true" aria-controls="tab-calculator">▦ 計算・チャート</button>
+      <button type="button" class="nav-tab" role="tab" id="nav-saved" aria-selected="false" aria-controls="tab-saved">☰ 保存済み銘柄 <span class="badge" id="saved-count">0</span></button>
+    </nav>
+  </div>
+
+  <script src="js/engine.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
