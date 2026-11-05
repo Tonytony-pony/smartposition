@@ -52,3 +52,7 @@ js/chart.js       TACTICAL PRICE MAP の Canvas 描画
 js/app.js         状態管理・画面更新・localStorage 保存
 tests/            計算エンジンのテスト
 ```
+
+## 更新するとき
+
+`index.html` の `css/style.css?v=2`・`js/*.js?v=2` の番号を上げてください。ブラウザに古いファイルが残って新旧が混ざるのを防ぎます。
