@@ -6,7 +6,7 @@ const E = require("../js/engine.js");
 const base = {
   ticker: "NVDA", totalMaxLoss: 200000, n: 1, currentPrice: 595, useThreeEntries: true,
   p1Price: 611, e1Price: 574, p2Price: 571, e2Price: 532, e3Price: 501, l1Price: 480,
-  p2MarginBias: 0.45
+  p2MarginBias: 0.5
 };
 
 function assertInvariants(input, out) {
@@ -27,7 +27,7 @@ test("総額÷4 と制約（Android版 ExampleUnitTest と同じ）", () => {
   assert.ok(out.isValid);
   assert.equal(out.divisor, 4);
   assert.equal(out.tradeMaxLoss, 50000);
-  assert.deepEqual([out.e1Shares, out.e2Shares, out.e3Shares], [251, 330, 440]);
+  assert.deepEqual([out.e1Shares, out.e2Shares, out.e3Shares], [191, 382, 573]);
   assert.ok(out.stage2.profitAtP2 > 0);
   assert.ok(out.stage3.profitAtP2 > 0);
   assert.ok(out.stage3.profitAtP1 > out.stage3.profitAtP2);
@@ -67,10 +67,10 @@ test("E3が入らない予算ではE1・E2だけを返す", () => {
 });
 
 test("2段モード（TSLAプリセット）", () => {
-  const input = { ticker: "TSLA", totalMaxLoss: 6000, n: 1, currentPrice: 262, useThreeEntries: false, p1Price: 275, e1Price: 250, p2Price: 247, e2Price: 232, e3Price: 218, l1Price: 215, p2MarginBias: 0.45 };
+  const input = { ticker: "TSLA", totalMaxLoss: 6000, n: 1, currentPrice: 262, useThreeEntries: false, p1Price: 275, e1Price: 250, p2Price: 247, e2Price: 232, e3Price: 218, l1Price: 215, p2MarginBias: 0.5 };
   const out = E.calculate(input);
   assert.equal(out.stage3, null);
-  assert.deepEqual([out.e1Shares, out.e2Shares, out.e3Shares], [26, 34, 0]);
+  assert.deepEqual([out.e1Shares, out.e2Shares, out.e3Shares], [21, 42, 0]);
   assert.ok(out.allFilledProfitAtP2 > 0);
   assertInvariants(input, out);
 });
@@ -79,12 +79,42 @@ test("スライダー 0→1 でE1からE2・E3へ比重が移る", () => {
   const low = E.calculate(Object.assign({}, base, { p2MarginBias: 0 }));
   const high = E.calculate(Object.assign({}, base, { p2MarginBias: 1 }));
   assert.deepEqual([low.e1Shares, low.e2Shares, low.e3Shares], [338, 253, 241]);
-  assert.deepEqual([high.e1Shares, high.e2Shares, high.e3Shares], [183, 365, 658]);
+  assert.deepEqual([high.e1Shares, high.e2Shares, high.e3Shares], [133, 399, 797]);
   assert.ok(high.finalAverageCost < low.finalAverageCost);
 });
 
+test("スライダー既定位置は E1:E2:E3 = 1:2:3（プリセット3件）", () => {
+  assert.equal(E.DEFAULT_BIAS, 0.5);
+  assert.equal(E.defaultInput().p2MarginBias, 0.5);
+  const aapl = E.calculate({ totalMaxLoss: 4000, n: 1, p1Price: 235, e1Price: 222, p2Price: 220, e2Price: 212, e3Price: 204, l1Price: 196, useThreeEntries: true });
+  assert.deepEqual([aapl.e1Shares, aapl.e2Shares, aapl.e3Shares], [12, 24, 36]);
+});
+
+test("既定位置の比率誤差: E1が10株以上なら各比率は1:2:3の±12%以内、95%以上は±5%以内", () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  let checked = 0, within5 = 0;
+  for (let k = 0; k < 2000; k++) {
+    const l1 = [50, 100, 480, 1800][Math.floor(rnd() * 4)];
+    const st = l1 * (0.01 + rnd() * 0.09);
+    const e3 = l1 + st * (0.5 + rnd() * 2.5), e2 = e3 + st * (0.5 + rnd() * 2.5);
+    const p2 = e2 + st * (0.3 + rnd() * 1.7), e1 = p2 + st * (0.05 + rnd() * 1.5);
+    // Avg(E1,E2) <= P2 の保証に 1:2 より多くの E2 が要る銘柄は対象外（保証を優先するため）
+    if (((e1 - p2) / (p2 - e2)) * 1.455 > 2) continue;
+    const three = rnd() < 0.6;
+    const out = E.calculate({ totalMaxLoss: (e1 - l1) * (30 + rnd() * 300) * 4, n: 1, p1Price: e1 + st, e1Price: e1, p2Price: p2, e2Price: e2, e3Price: e3, l1Price: l1, useThreeEntries: three });
+    if (!out.isValid || out.e1Shares < 10) continue;
+    const dev = Math.max(Math.abs(out.e2Shares / out.e1Shares - 2) / 2, three ? Math.abs(out.e3Shares / out.e1Shares - 3) / 3 : 0);
+    assert.ok(dev <= 0.12, `ratio ${out.e1Shares}:${out.e2Shares}:${out.e3Shares}`);
+    if (dev <= 0.05) within5++;
+    checked++;
+  }
+  assert.ok(checked > 1000);
+  assert.ok(within5 / checked >= 0.95, `within5 ${within5}/${checked}`);
+});
+
 test("手動調整は予算超過を許すが警告を出す", () => {
-  const out = E.calculate(Object.assign({}, base, { manualE1Shares: 271, manualE2Shares: 330, manualE3Shares: 440 }));
+  const out = E.calculate(Object.assign({}, base, { manualE1Shares: 211, manualE2Shares: 382, manualE3Shares: 573 }));
   assert.ok(out.isManualOverride);
   assert.ok(out.allFilledLossAtL1 > out.tradeMaxLoss);
   assert.ok(out.warnings.some((w) => w.includes("超過")));

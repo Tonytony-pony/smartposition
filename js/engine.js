@@ -24,7 +24,7 @@
       e2Price: 532,
       e3Price: 501,
       l1Price: 480,
-      p2MarginBias: 0.45,
+      p2MarginBias: DEFAULT_BIAS,
       manualE1Shares: null,
       manualE2Shares: null,
       manualE3Shares: null
@@ -266,6 +266,28 @@
     };
   }
 
+  /** スライダーの既定位置（E1:E2:E3 ≒ 1:2:3） */
+  const DEFAULT_BIAS = 0.5;
+  /** 目標比率からのずれの重み（予算消化率 100% = 100点に対して） */
+  const RATIO_WEIGHT = 60;
+  /** E3 株数の候補数（残り予算を使い切る株数から何株まで減らして比べるか） */
+  const N3_CANDIDATES = 20;
+
+  /**
+   * スライダー値から目標の株数比 N2/N1・N3/N2 を決める（区分線形）。
+   *   0.0 → 1 : 0.75 : 0.71   E1重視（浅い押し目での利益を最大化）
+   *   0.5 → 1 : 2    : 3      既定
+   *   1.0 → 1 : 3    : 6      下値重視（平均単価をP2より大きく引き下げる）
+   */
+  function biasTargets(bias) {
+    if (bias <= DEFAULT_BIAS) {
+      const t = bias / DEFAULT_BIAS;
+      return { r12: 0.75 + 1.25 * t, r23: 0.95 + 0.55 * t };
+    }
+    const t = (bias - DEFAULT_BIAS) / (1 - DEFAULT_BIAS);
+    return { r12: 2 + t, r23: 1.5 + 0.5 * t };
+  }
+
   /**
    * 1株単位の最適株数 (N1, N2, N3) を探索する。
    * bias: 0.0 = E1重視 / 1.0 = E2・E3（下値）重視
@@ -274,8 +296,10 @@
     if (tradeMaxLoss < Math.min(d1, d2)) return [0, 0, 0];
 
     const minR12 = (e1 - p2) / (p2 - e2);
-    const targetR12 = Math.max(minR12 * (1.08 + 0.75 * bias), 0.75 + 1.25 * bias);
-    const targetR23 = useThreeEntries ? 0.95 + 0.85 * bias : 0;
+    const targets = biasTargets(bias);
+    // Avg(E1,E2) <= P2 に必要な比率が 1:2 を上回る銘柄では、保証を優先して E2 を増やす
+    const targetR12 = Math.max(minR12 * (1.08 + 0.75 * bias), targets.r12);
+    const targetR23 = useThreeEntries ? targets.r23 : 0;
 
     const w1 = 1;
     const w2 = targetR12;
@@ -315,28 +339,30 @@
           const strict = n2 >= minN2ForProfit;
           const budgetRatio = loss12 / tradeMaxLoss;
           const ratioDiff = Math.abs(n2 / n1 - targetR12) / Math.max(1, targetR12);
-          const score = budgetRatio * 100 - ratioDiff * 25 + (strict ? 20 : 0);
+          const score = budgetRatio * 100 - ratioDiff * RATIO_WEIGHT + (strict ? 20 : 0);
           if (score > bestScore) {
             bestScore = score;
             best = [n1, n2, 0];
           }
         } else {
-          const n3 = Math.floor((tradeMaxLoss - loss12) / d3);
-          if (n3 < 1) continue;
+          // E3 は予算の残りを全部使う株数から少しずつ減らした候補も比べ、比率と予算消化のバランスで選ぶ
+          const maxN3 = Math.floor((tradeMaxLoss - loss12) / d3);
+          const targetN3PerN1 = targetR12 * targetR23;
+          for (let n3 = maxN3; n3 >= Math.max(1, maxN3 - N3_CANDIDATES); n3--) {
+            const avg123 = (n1 * e1 + n2 * e2 + n3 * e3) / (n1 + n2 + n3);
+            if (avg123 > p2 + 1e-9) break; // n3 を減らすほど平均は上がる
 
-          const avg123 = (n1 * e1 + n2 * e2 + n3 * e3) / (n1 + n2 + n3);
-          if (avg123 > p2 + 1e-9) continue;
-
-          const totalLoss = loss12 + n3 * d3;
-          const strict = n2 >= minN2ForProfit;
-          const budgetRatio = totalLoss / tradeMaxLoss;
-          const penalty =
-            (Math.abs(n2 / n1 - targetR12) / Math.max(1, targetR12)) * 18 +
-            (Math.abs(n3 / n2 - targetR23) / Math.max(1, targetR23)) * 18;
-          const score = budgetRatio * 100 - penalty + (strict ? 25 : 0);
-          if (score > bestScore) {
-            bestScore = score;
-            best = [n1, n2, n3];
+            const totalLoss = loss12 + n3 * d3;
+            const strict = n2 >= minN2ForProfit;
+            const budgetRatio = totalLoss / tradeMaxLoss;
+            const penalty =
+              (Math.abs(n2 / n1 - targetR12) / Math.max(1, targetR12)) * RATIO_WEIGHT +
+              (Math.abs(n3 / n1 - targetN3PerN1) / Math.max(1, targetN3PerN1)) * RATIO_WEIGHT;
+            const score = budgetRatio * 100 - penalty + (strict ? 25 : 0);
+            if (score > bestScore) {
+              bestScore = score;
+              best = [n1, n2, n3];
+            }
           }
         }
       }
@@ -406,6 +432,7 @@
   }
 
   const api = {
+    DEFAULT_BIAS: DEFAULT_BIAS,
     defaultInput: defaultInput,
     calculate: calculate,
     formatNumber: formatNumber,

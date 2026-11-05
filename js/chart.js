@@ -30,6 +30,7 @@
     return Math.min(Math.max(v, lo), hi);
   }
 
+  let dotScale = 1;
   const MONO = '"JetBrains Mono", "Cascadia Mono", Consolas, monospace';
   const SANS = '"Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif';
 
@@ -85,28 +86,31 @@
   }
 
   function nodeDot(ctx, x, y, color, innerBg, r) {
+    r = r * Math.sqrt(dotScale);
     circle(ctx, x, y, r * 2.1, rgba(color, 0.28));
     circle(ctx, x, y, r, innerBg);
     circle(ctx, x, y, r * 0.72, color);
   }
 
   function targetRing(ctx, x, y, color, centerColor) {
-    circle(ctx, x, y, 10, rgba(color, 0.22));
-    circle(ctx, x, y, 5.5, null, color, 2);
-    circle(ctx, x, y, 2, centerColor);
+    const q = Math.sqrt(dotScale);
+    circle(ctx, x, y, 10 * q, rgba(color, 0.22));
+    circle(ctx, x, y, 5.5 * q, null, color, 2);
+    circle(ctx, x, y, 2 * q, centerColor);
   }
 
   function exitCallout(ctx, c, o) {
+    const k = c.k;
     const accent = o.isProfit ? c.profit : c.loss;
-    ctx.font = `bold 8px ${SANS}`;
+    ctx.font = `bold ${8 * k}px ${SANS}`;
     const tagW = ctx.measureText(o.tag).width;
-    ctx.font = `bold 9.5px ${MONO}`;
+    ctx.font = `bold ${9.5 * k}px ${MONO}`;
     const amtW = ctx.measureText(o.amount).width;
-    const padH = 5;
-    const padV = 2.5;
+    const padH = 5 * k;
+    const padV = 2.5 * k;
     const boxW = Math.max(tagW, amtW) + padH * 2;
-    const boxH = 24;
-    const offset = 8;
+    const boxH = 24 * k;
+    const offset = 8 * k;
     const rawTop = o.isAbove ? o.y - offset - boxH : o.y + offset;
     const boxTop = clamp(rawTop, 4, c.h - boxH - 4);
     const boxLeft = clamp(o.x - boxW / 2, o.minX + 2, Math.max(o.maxX - boxW - 2, o.minX + 2));
@@ -123,15 +127,28 @@
     ctx.stroke();
 
     ctx.fillStyle = c.text;
-    ctx.font = `bold 8px ${SANS}`;
-    ctx.fillText(o.tag, boxLeft + (boxW - tagW) / 2, boxTop + padV + 7.5);
+    ctx.font = `bold ${8 * k}px ${SANS}`;
+    ctx.fillText(o.tag, boxLeft + (boxW - tagW) / 2, boxTop + padV + 7.5 * k);
     ctx.fillStyle = accent;
-    ctx.font = `bold 9.5px ${MONO}`;
+    ctx.font = `bold ${9.5 * k}px ${MONO}`;
     ctx.fillText(o.amount, boxLeft + (boxW - amtW) / 2, boxTop + boxH - padV);
   }
 
+  /** 左右の列に置くラベル（現在値・E1〜E3・P1・P2・L1）が収まる幅 */
+  function badgeWidth(ctx, k, items, minWidth) {
+    let w = 0;
+    items.forEach(([title, subtitle]) => {
+      ctx.font = `bold ${10.5 * k}px ${MONO}`;
+      w = Math.max(w, ctx.measureText(title).width);
+      ctx.font = `${9 * k}px ${SANS}`;
+      w = Math.max(w, ctx.measureText(subtitle).width);
+    });
+    return Math.max(minWidth * k, w + 12 * k);
+  }
+
   function levelBadge(ctx, c, x, centerY, title, subtitle, width, color) {
-    const boxH = 32;
+    const k = c.k;
+    const boxH = 32 * k;
     const top = centerY - boxH / 2;
     roundRect(ctx, x, top, width, boxH, 7);
     ctx.fillStyle = rgba(c.surface, 0.96);
@@ -140,23 +157,24 @@
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    ctx.font = `bold 10.5px ${MONO}`;
+    ctx.font = `bold ${10.5 * k}px ${MONO}`;
     ctx.fillStyle = c.text;
     const tw = ctx.measureText(title).width;
-    ctx.fillText(title, x + (width - tw) / 2, top + 12.5);
+    ctx.fillText(title, x + (width - tw) / 2, top + 12.5 * k);
 
-    ctx.font = `9px ${SANS}`;
+    ctx.font = `${9 * k}px ${SANS}`;
     ctx.fillStyle = color;
     const sw = ctx.measureText(subtitle).width;
-    ctx.fillText(subtitle, x + (width - sw) / 2, top + boxH - 4.5);
+    ctx.fillText(subtitle, x + (width - sw) / 2, top + boxH - 4.5 * k);
   }
 
   function rightInlineTag(ctx, c, rightX, centerY, text, color) {
-    ctx.font = `9px ${SANS}`;
-    const padH = 6;
+    const k = c.k;
+    ctx.font = `${9 * k}px ${SANS}`;
+    const padH = 6 * k;
     const tw = ctx.measureText(text).width;
     const boxW = tw + padH * 2;
-    const boxH = 17;
+    const boxH = 17 * k;
     const left = rightX - boxW;
     const top = centerY - boxH / 2;
     roundRect(ctx, left, top, boxW, boxH, 4);
@@ -166,7 +184,7 @@
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.fillStyle = color;
-    ctx.fillText(text, left + padH, centerY + 3.5);
+    ctx.fillText(text, left + padH, centerY + 3.5 * k);
   }
 
   /**
@@ -185,8 +203,11 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    // 横幅に応じて文字・ラベルを拡大（全幅表示の PC で約 1.45 倍）
+    const k = clamp(w / 700, 1, 1.45);
+    dotScale = k;
     const c = {
-      w: w, h: h,
+      w: w, h: h, k: k,
       grid: cssVar("--outline-variant"),
       surface: cssVar("--surface"),
       text: cssVar("--on-surface"),
@@ -203,11 +224,15 @@
     const avg12 = p.avg12;
     const avg123 = p.avg123;
 
-    const topPad = 42;
-    const bottomPad = 34;
+    const topPad = 42 * k;
+    const bottomPad = 34 * k;
     const usableH = Math.max(h - topPad - bottomPad, 100);
-    const leftBadgeW = 58;
-    const rightBadgeW = 60;
+    const leftLabels = [["E1 " + F.formatNumber(p.e1), "+" + out.e1Shares + "株"], ["E2 " + F.formatNumber(p.e2), "+" + out.e2Shares + "株"]];
+    if (three) leftLabels.push(["E3 " + F.formatNumber(p.e3), "+" + out.e3Shares + "株"]);
+    if (p.currentPrice > 0) leftLabels.push(["現在値", F.formatNumber(p.currentPrice)]);
+    const rightLabels = [["P1 " + F.formatNumber(p.p1), "+00,000,000"], ["P2 " + F.formatNumber(p.p2), "+00,000,000"], ["L1 " + F.formatNumber(p.l1), "損切ライン"]];
+    const leftBadgeW = badgeWidth(ctx, k, leftLabels, 58);
+    const rightBadgeW = badgeWidth(ctx, k, rightLabels, 60);
     const leftZoneEnd = leftBadgeW + 16;
     const rightZoneStart = w - rightBadgeW - 16;
 
@@ -227,7 +252,7 @@
     primary.push(["L1", p.l1]);
     primary.sort((a, b) => b[1] - a[1]);
 
-    const minGap = Math.min(usableH / (primary.length + 1.5), 38);
+    const minGap = Math.min(usableH / (primary.length + 1.5), 38 * k);
     const Y = {};
     primary.forEach(([k, v]) => { Y[k] = rawY(v); });
     for (let i = 1; i < primary.length; i++) {
@@ -257,9 +282,9 @@
 
     const yP1 = Y.P1, yE1 = Y.E1, yP2 = Y.P2, yE2 = Y.E2, yL1 = Y.L1;
     const yE3 = three ? Y.E3 : yE2;
-    const yCur = Math.min(Math.max(mappedY(p.currentPrice), 18), Math.max(18, yE1 - 34));
-    const yAvg12 = clamp(mappedY(avg12), yP2 + 26, Math.max(yP2 + 26, yL1 - 28));
-    const yAvg123 = three ? clamp(mappedY(avg123), yAvg12 + 22, Math.max(yAvg12 + 22, yL1 - 26)) : yAvg12;
+    const yCur = Math.min(Math.max(mappedY(p.currentPrice), 18 * k), Math.max(18 * k, yE1 - 34 * k));
+    const yAvg12 = clamp(mappedY(avg12), yP2 + 26 * k, Math.max(yP2 + 26 * k, yL1 - 28 * k));
+    const yAvg123 = three ? clamp(mappedY(avg123), yAvg12 + 22 * k, Math.max(yAvg12 + 22 * k, yL1 - 26 * k)) : yAvg12;
 
     // シナリオごとの表示判定
     const showE2Path = s !== "e1p1";

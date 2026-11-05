@@ -57,7 +57,7 @@
       e2PriceText: "532",
       e3PriceText: "501",
       l1PriceText: "480",
-      p2MarginBias: 0.45,
+      p2MarginBias: E.DEFAULT_BIAS,
       manualE1Shares: null,
       manualE2Shares: null,
       manualE3Shares: null,
@@ -74,7 +74,16 @@
     "p1PriceText", "e1PriceText", "p2PriceText", "e2PriceText", "e3PriceText", "l1PriceText", "p2MarginBias",
     "manualE1Shares", "manualE2Shares", "manualE3Shares"];
 
-  const state = Object.assign(defaultState(), pick(store.get(KEY.draft, {}), DRAFT_FIELDS));
+  // 下書きの形式。2 = スライダー既定値が 1:2:3（0.5）になった版。旧版の下書きはスライダーだけ既定値に戻す。
+  const DRAFT_MODEL = 2;
+  const storedDraft = store.get(KEY.draft, {}) || {};
+  const state = Object.assign(defaultState(), pick(storedDraft, DRAFT_FIELDS));
+  if (storedDraft.model !== DRAFT_MODEL) {
+    state.p2MarginBias = E.DEFAULT_BIAS;
+    state.manualE1Shares = null;
+    state.manualE2Shares = null;
+    state.manualE3Shares = null;
+  }
   state.isDarkTheme = store.get(KEY.theme, "dark") !== "light";
   let output = null;
   let plans = loadPlans();
@@ -87,7 +96,7 @@
   }
 
   function saveDraft() {
-    store.set(KEY.draft, pick(state, DRAFT_FIELDS));
+    store.set(KEY.draft, Object.assign({ model: DRAFT_MODEL }, pick(state, DRAFT_FIELDS)));
   }
 
   // ---------------------------------------------------------------- parsing
@@ -202,7 +211,7 @@
           e2Price: Number(preset.e2Price),
           e3Price: Number(preset.e3Price),
           l1Price: Number(preset.l1Price),
-          p2MarginBias: 0.45
+          p2MarginBias: E.DEFAULT_BIAS
         };
         const out = E.calculate(input);
         if (out.isValid) {
@@ -260,7 +269,7 @@
       e2PriceText: formatInputDouble(plan.e2Price),
       e3PriceText: formatInputDouble(plan.e3Price),
       l1PriceText: formatInputDouble(plan.l1Price),
-      p2MarginBias: typeof plan.p2MarginBias === "number" ? plan.p2MarginBias : 0.45,
+      p2MarginBias: typeof plan.p2MarginBias === "number" ? plan.p2MarginBias : E.DEFAULT_BIAS,
       manualE1Shares: plan.e1Shares,
       manualE2Shares: plan.e2Shares,
       manualE3Shares: plan.useThreeEntries ? plan.e3Shares : null,
@@ -464,7 +473,7 @@
         note: String(p.note || "").slice(0, 500),
         n: Number(p.n) || 1,
         useThreeEntries: !!p.useThreeEntries,
-        p2MarginBias: typeof p.p2MarginBias === "number" ? p.p2MarginBias : 0.45,
+        p2MarginBias: typeof p.p2MarginBias === "number" ? p.p2MarginBias : E.DEFAULT_BIAS,
         e1Shares: Number(p.e1Shares) || 0,
         e2Shares: Number(p.e2Shares) || 0,
         e3Shares: Number(p.e3Shares) || 0,
@@ -581,7 +590,10 @@
     $("duplicate-plan").hidden = !s.editingPlanId;
 
     // Slider dock
-    $("ratio-value").textContent = `N2/N1: ${out.actualN2ToN1Ratio.toFixed(2)}x`;
+    const r2 = out.e1Shares > 0 ? (out.e2Shares / out.e1Shares).toFixed(2) : "-";
+    const r3 = out.e1Shares > 0 ? (out.e3Shares / out.e1Shares).toFixed(2) : "-";
+    $("ratio-value").textContent = three ? `E1:E2:E3 = 1 : ${r2} : ${r3}` : `E1:E2 = 1 : ${r2}`;
+    $("bias-default").disabled = Math.abs(s.p2MarginBias - E.DEFAULT_BIAS) < 1e-9 && !out.isManualOverride;
     $("min-ratio-label").textContent = `◀ E1確保 (最低比率 ${out.minN2ToN1RatioForP2.toFixed(2)}x)`;
     if (document.activeElement !== $("bias-slider")) $("bias-slider").value = String(s.p2MarginBias);
 
@@ -894,6 +906,13 @@
     });
     $("bias-slider").addEventListener("input", (e) => {
       state.p2MarginBias = Math.min(Math.max(Number(e.target.value), 0), 1);
+      clearManual();
+      state.statusBannerMessage = null;
+      update();
+    });
+    $("bias-default").addEventListener("click", () => {
+      state.p2MarginBias = E.DEFAULT_BIAS;
+      $("bias-slider").value = String(E.DEFAULT_BIAS);
       clearManual();
       state.statusBannerMessage = null;
       update();

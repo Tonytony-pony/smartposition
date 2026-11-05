@@ -114,24 +114,40 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 /* ---------- Main / layout ---------- */
 main { flex: 1; overflow-y: auto; }
 
+/* PC: 上段 = 左「INPUT 1・2」/ 右「株数・Exit損益」、下段 = 全幅のチャート */
 .workspace {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "left  right"
+    "chart chart";
+  align-items: start;
   gap: 16px;
   padding: 12px 16px 24px;
   max-width: 1440px;
   margin: 0 auto;
 }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.col-left { flex: 46 1 0; }
-.col-right { flex: 54 1 0; }
+.col-left { grid-area: left; }
+.col-right { grid-area: right; }
+#chart-card { grid-area: chart; }
+#chart-card .chart-wrap { height: 540px; }
 
 @media (max-width: 839px) {
-  .workspace { flex-direction: column; max-width: 672px; }
+  .workspace { display: flex; flex-direction: column; max-width: 672px; }
   .col { display: contents; }
   #risk-card { order: 1; }
   #price-card { order: 2; }
   #alloc-card { order: 3; }
   #chart-card { order: 4; }
+  #chart-card .chart-wrap { height: 420px; }
+}
+
+/* 価格ライン: 縦3段 × 横2列（左 P1・P2・L1 / 右 E1・E2・E3） */
+.level-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 12px; }
+.level-col { min-width: 0; }
+@media (max-width: 599px) {
+  .level-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- Cards ---------- */
@@ -246,7 +262,7 @@ input.ticker { text-transform: uppercase; font-weight: 700; }
 .ladder { display: flex; flex-direction: column; gap: 8px; }
 .ladder-row {
   display: grid;
-  grid-template-columns: 112px 1fr;
+  grid-template-columns: 92px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
@@ -456,6 +472,9 @@ input.ticker { text-transform: uppercase; font-weight: 700; }
 .dock-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12.5px; }
 .dock-head strong { color: var(--tertiary); }
 .dock-head .ratio { font-size: 12px; color: var(--tertiary); font-weight: 700; }
+.dock-right { display: inline-flex; align-items: center; gap: 10px; }
+.text-btn.small { padding: 2px 10px; font-size: 11px; border-color: var(--tertiary); color: var(--tertiary); }
+.text-btn.small:disabled { opacity: 0.35; }
 .dock-foot { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--on-surface-variant); }
 input[type="range"] {
   width: 100%;

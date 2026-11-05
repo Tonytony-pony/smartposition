@@ -6,7 +6,7 @@
   <title>SmartPosition — ナンピン・分割買い下がり資金管理シミュレーター</title>
   <meta name="description" content="分割買いエントリー（E1・E2・E3）の最適購入株数と、利確・損切りの損益を算出・可視化するトレード計画ツール。データはお使いのブラウザ内だけに保存されます。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230c2d48'/%3E%3Cpath d='M10 18 L24 34 L34 26 L46 44 L54 30' fill='none' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='46' cy='44' r='5' fill='%2310b981'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=3">
   <script>
     // テーマのちらつき防止（保存済みのテーマを先に適用）
     try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
@@ -97,6 +97,8 @@
               </label>
             </div>
 
+            <div class="level-grid">
+            <div class="level-col">
             <div class="section-label">利確・損切ライン (P1・P2・L1)</div>
             <div class="ladder">
               <label class="ladder-row">
@@ -113,6 +115,8 @@
               </label>
             </div>
 
+            </div>
+            <div class="level-col">
             <div class="section-label" id="entry-section-label"></div>
             <div class="ladder">
               <label class="ladder-row">
@@ -128,6 +132,8 @@
                 <input type="text" class="price" id="in-e3" inputmode="decimal" autocomplete="off" aria-label="E3 第3反発買いライン">
               </label>
             </div>
+            </div>
+            </div>
 
             <label class="field" style="margin-top:14px">
               <span>戦略メモ (任意・保存時に一覧表示)</span>
@@ -140,29 +146,6 @@
         </div>
 
         <div class="col col-right">
-          <!-- チャート -->
-          <section class="card" id="chart-card">
-            <div class="card-head-row">
-              <div>
-                <div class="card-title" style="margin-bottom:2px">TACTICAL PRICE MAP</div>
-                <h2 class="card-heading" id="chart-heading"></h2>
-              </div>
-              <span class="mode-chip" id="chart-mode-chip"></span>
-            </div>
-            <div class="scenario-chips" id="scenario-chips" role="toolbar" aria-label="Exitシナリオ"></div>
-            <div class="chart-wrap" id="chart-wrap">
-              <canvas id="chart-canvas" role="img" aria-label="エントリー玉数・決済ライン軌道図"></canvas>
-            </div>
-            <div class="chart-empty" id="chart-empty" hidden>価格ラインの順序エラーを解消すると軌道マップが描画されます</div>
-            <div class="legend" id="chart-legend">
-              <span><i style="background:var(--primary)"></i>買いエントリー (E1〜E3 &amp; 株数)</span>
-              <span><i style="background:var(--secondary)"></i>利確ターゲット (P1・P2)</span>
-              <span><i style="background:var(--tertiary)"></i>平均取得単価 (Avg ≤ P2)</span>
-              <span><i style="background:var(--error)"></i>損切ライン (L1)</span>
-              <span><i style="background:var(--current)"></i>現在値</span>
-            </div>
-          </section>
-
           <!-- 株数・損益 -->
           <section class="card" id="alloc-card">
             <div class="card-head-row">
@@ -188,6 +171,29 @@
             </div>
           </section>
         </div>
+
+        <!-- チャート（下段・全幅） -->
+        <section class="card" id="chart-card">
+          <div class="card-head-row">
+            <div>
+              <div class="card-title" style="margin-bottom:2px">TACTICAL PRICE MAP</div>
+              <h2 class="card-heading" id="chart-heading"></h2>
+            </div>
+            <span class="mode-chip" id="chart-mode-chip"></span>
+          </div>
+          <div class="scenario-chips" id="scenario-chips" role="toolbar" aria-label="Exitシナリオ"></div>
+          <div class="chart-wrap" id="chart-wrap">
+            <canvas id="chart-canvas" role="img" aria-label="エントリー玉数・決済ライン軌道図"></canvas>
+          </div>
+          <div class="chart-empty" id="chart-empty" hidden>価格ラインの順序エラーを解消すると軌道マップが描画されます</div>
+          <div class="legend" id="chart-legend">
+            <span><i style="background:var(--primary)"></i>買いエントリー (E1〜E3 &amp; 株数)</span>
+            <span><i style="background:var(--secondary)"></i>利確ターゲット (P1・P2)</span>
+            <span><i style="background:var(--tertiary)"></i>平均取得単価 (Avg ≤ P2)</span>
+            <span><i style="background:var(--error)"></i>損切ライン (L1)</span>
+            <span><i style="background:var(--current)"></i>現在値</span>
+          </div>
+        </section>
       </div>
       <footer class="site-footer">
         入力内容と保存した計画は、このブラウザ内（localStorage）だけに保存されます。サーバーへは送信されません。<br>
@@ -218,9 +224,13 @@
     <div class="slider-dock" id="slider-dock">
       <div class="dock-head">
         <strong>玉数配分バランス (E1重視 ↔ 下値利確重視)</strong>
-        <span class="ratio mono" id="ratio-value"></span>
+        <span class="dock-right">
+          <span class="ratio mono" id="ratio-value"></span>
+          <button type="button" class="text-btn small" id="bias-default" title="スライダーを既定位置（E1:E2:E3 ≒ 1:2:3）に戻す">1:2:3 に戻す</button>
+        </span>
       </div>
-      <input type="range" id="bias-slider" min="0" max="1" step="0.01" aria-label="玉数配分バランス">
+      <input type="range" id="bias-slider" min="0" max="1" step="0.01" list="bias-ticks" aria-label="玉数配分バランス">
+      <datalist id="bias-ticks"><option value="0.5" label="1:2:3"></option></datalist>
       <div class="dock-foot">
         <span id="min-ratio-label"></span>
         <span>下値平均単価引下げ ▶</span>
@@ -242,8 +252,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=2"></script>
-  <script src="js/chart.js?v=2"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/engine.js?v=3"></script>
+  <script src="js/chart.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>
