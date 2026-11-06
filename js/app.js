@@ -575,8 +575,12 @@
     $("input1-toggle-label").textContent = s.input1Expanded ? "▲ 閉じる" : "▼ 変更";
     $("input1-toggle").setAttribute("aria-expanded", String(s.input1Expanded));
     $("input1-body").hidden = !s.input1Expanded;
-    $("divisor-hint").textContent = `除数 (3n+n) = ${out.divisor} (本トレード = 総額 ÷ ${out.divisor})`;
-    $("n-minus").disabled = (parseInt(s.nText, 10) || 1) <= 1;
+    $("divisor-hint").textContent =
+      `nを増やすほど、1回のトレードで許す損失額が小さくなります。` +
+      `いま: ${E.formatCurrency(out.totalMaxLoss)} ÷ ${out.divisor}（3n+n）= ${E.formatCurrency(out.tradeMaxLoss)}`;
+    const nMin = (parseInt(s.nText, 10) || 1) <= 1;
+    $("n-minus").disabled = nMin;
+    $("n-minus").title = nMin ? "nは1が最小です" : "nを1減らす";
 
     // INPUT 2
     $("mode-label").textContent = three ? "反発ライン数: 3段階 (E1・E2・E3)" : "反発ライン数: 2段階 (E1・E2)";
@@ -890,20 +894,20 @@
       state.statusBannerMessage = null;
       update();
     });
-    $("n-plus").addEventListener("click", () => {
-      state.nText = String((parseInt(state.nText, 10) || 1) + 1);
+    const stepN = (delta) => {
+      const next = (parseInt(state.nText, 10) || 1) + delta;
+      if (next < 1) return;
+      state.nText = String(next);
       $("in-n").value = state.nText;
       clearManual();
       update();
-    });
-    $("n-minus").addEventListener("click", () => {
-      const cur = parseInt(state.nText, 10) || 1;
-      if (cur > 1) {
-        state.nText = String(cur - 1);
-        $("in-n").value = state.nText;
-        clearManual();
-        update();
-      }
+    };
+    $("n-plus").addEventListener("click", () => stepN(1));
+    $("n-minus").addEventListener("click", () => stepN(-1));
+    // 入力欄では ↑↓ キーでも増減できる（数値入力の慣習）
+    $("in-n").addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp") { e.preventDefault(); stepN(1); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); stepN(-1); }
     });
     $("input1-toggle").addEventListener("click", () => {
       state.input1Expanded = !state.input1Expanded;

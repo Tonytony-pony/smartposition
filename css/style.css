@@ -208,7 +208,7 @@ main { flex: 1; overflow-y: auto; }
 
 /* ---------- Form fields ---------- */
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.field > span { font-size: 12px; color: var(--on-surface-variant); }
+.field > span, .field > .field-label { font-size: 12px; color: var(--on-surface-variant); }
 input[type="text"], input[type="search"], textarea {
   width: 100%;
   padding: 9px 11px;
@@ -225,14 +225,20 @@ input.ticker { text-transform: uppercase; font-weight: 700; }
 
 .stepper { display: flex; gap: 6px; }
 .stepper input { text-align: center; }
+/* −／＋ ステッパー: 減らす＝左、増やす＝右。指で押せる 44px 以上の大きさにする */
 .stepper button {
   flex: 0 0 auto;
+  width: 48px;
+  min-height: 44px;
   border-radius: 10px;
   border: 1.2px solid var(--outline);
   background: var(--surface);
-  padding: 0 10px;
-  font-size: 12px;
+  font-size: 22px;
+  line-height: 1;
+  display: grid; place-items: center;
 }
+.stepper button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 

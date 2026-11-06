@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <meta name="theme-color" content="#0c2d48">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <script>
     // テーマのちらつき防止（保存済みのテーマを先に適用）
     try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
@@ -63,14 +63,15 @@
                 <span>総額の損失許容額</span>
                 <input type="text" class="price" id="in-total" inputmode="decimal" autocomplete="off">
               </label>
-              <label class="field">
-                <span>n (分割係数)</span>
-                <div class="stepper">
-                  <button type="button" id="n-minus">n - 1</button>
-                  <input type="text" class="price" id="in-n" inputmode="numeric" autocomplete="off">
-                  <button type="button" id="n-plus">n + 1</button>
+              <div class="field">
+                <label for="in-n" class="field-label">n（分割係数）</label>
+                <div class="stepper" role="group" aria-labelledby="n-group-label">
+                  <span id="n-group-label" hidden>n（分割係数）</span>
+                  <button type="button" id="n-minus" title="nを1減らす" aria-label="nを1減らす" aria-controls="in-n"><span aria-hidden="true">−</span></button>
+                  <input type="text" class="price" id="in-n" inputmode="numeric" autocomplete="off" aria-describedby="divisor-hint">
+                  <button type="button" id="n-plus" title="nを1増やす" aria-label="nを1増やす" aria-controls="in-n"><span aria-hidden="true">+</span></button>
                 </div>
-              </label>
+              </div>
               <div class="hint" id="divisor-hint"></div>
             </div>
           </section>
@@ -255,8 +256,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=5"></script>
-  <script src="js/chart.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/engine.js?v=6"></script>
+  <script src="js/chart.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
 </body>
 </html>
