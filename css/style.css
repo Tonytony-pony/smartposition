@@ -134,7 +134,11 @@ main { flex: 1; overflow-y: auto; }
 #chart-card .chart-wrap { height: 540px; }
 
 @media (max-width: 839px) {
-  .workspace { display: flex; flex-direction: column; max-width: 672px; }
+  /* align-items: start のままだと各カードが中身の最大幅（シナリオボタン列など）まで広がり、
+     スマホで横スクロールが出る。縦並びでは画面幅いっぱいに伸ばして中身を折り返す。 */
+  .workspace { display: flex; flex-direction: column; align-items: stretch; max-width: 672px; }
+  .workspace > *, .col > * { min-width: 0; }
+  .scenario-chips { flex-wrap: wrap; overflow-x: visible; }
   .col { display: contents; }
   #risk-card { order: 1; }
   #price-card { order: 2; }
