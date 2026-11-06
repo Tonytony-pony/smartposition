@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "SmartPosition",
+  "short_name": "SmartPosition",
+  "description": "分割買いエントリー（E1・E2・E3）の最適購入株数と利確・損切りの損益を算出するトレード計画ツール",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#070b12",
+  "theme_color": "#0c2d48",
+  "icons": [
+    { "src": "img/icon-192.png",      "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-512.png",      "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
