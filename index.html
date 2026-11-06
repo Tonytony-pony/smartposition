@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <meta name="theme-color" content="#0c2d48">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
   <script>
     // テーマのちらつき防止（保存済みのテーマを先に適用）
     try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
@@ -185,7 +185,12 @@
             </div>
             <span class="mode-chip" id="chart-mode-chip"></span>
           </div>
-          <div class="scenario-chips" id="scenario-chips" role="toolbar" aria-label="Exitシナリオ"></div>
+          <div class="scenario-picker">
+            <label for="scenario-select">表示する決済パターン</label>
+            <div class="select-wrap">
+              <select id="scenario-select" class="mono"></select>
+            </div>
+          </div>
           <div class="chart-wrap" id="chart-wrap">
             <canvas id="chart-canvas" role="img" aria-label="エントリー玉数・決済ライン軌道図"></canvas>
           </div>
@@ -256,8 +261,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=6"></script>
-  <script src="js/chart.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/engine.js?v=7"></script>
+  <script src="js/chart.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>

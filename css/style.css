@@ -138,7 +138,6 @@ main { flex: 1; overflow-y: auto; }
      スマホで横スクロールが出る。縦並びでは画面幅いっぱいに伸ばして中身を折り返す。 */
   .workspace { display: flex; flex-direction: column; align-items: stretch; max-width: 672px; }
   .workspace > *, .col > * { min-width: 0; }
-  .scenario-chips { flex-wrap: wrap; overflow-x: visible; }
   .col { display: contents; }
   #risk-card { order: 1; }
   #price-card { order: 2; }
@@ -433,22 +432,33 @@ input.ticker { text-transform: uppercase; font-weight: 700; }
   color: var(--on-surface-variant);
   white-space: nowrap;
 }
-.scenario-chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0; scrollbar-width: thin; }
-.scenario-chip {
-  flex: 0 0 auto;
-  border: 1px solid var(--outline);
-  background: var(--surface-variant);
-  color: var(--on-surface-variant);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
+/* 決済パターンの選択（プルダウン）。枠の色は選んだパターン（全体=水色 / 利確=緑 / 損切=赤） */
+.scenario-picker { display: flex; align-items: center; gap: 10px; padding: 12px 0; flex-wrap: wrap; }
+.scenario-picker label { font-size: 12px; color: var(--on-surface-variant); white-space: nowrap; }
+.select-wrap { position: relative; flex: 1 1 260px; max-width: 420px; min-width: 0; }
+.select-wrap::after {
+  content: "";
+  position: absolute; right: 14px; top: 50%;
+  width: 8px; height: 8px; margin-top: -6px;
+  border-right: 2px solid var(--on-surface-variant);
+  border-bottom: 2px solid var(--on-surface-variant);
+  transform: rotate(45deg);
+  pointer-events: none;
 }
-.scenario-chip[aria-pressed="true"] {
+.select-wrap select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 38px 8px 12px;
+  appearance: none; -webkit-appearance: none;
+  border-radius: 10px;
+  border: 1.6px solid var(--chip-accent, var(--outline));
+  background: color-mix(in srgb, var(--chip-accent, transparent) 14%, var(--surface-variant));
   color: var(--on-surface);
-  font-weight: 700;
-  border-color: var(--chip-accent);
-  background: color-mix(in srgb, var(--chip-accent) 18%, transparent);
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
 }
+.select-wrap select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.select-wrap select option { background: var(--surface); color: var(--on-surface); font-weight: 400; }
 .chart-wrap {
   position: relative;
   height: 420px;

@@ -609,7 +609,7 @@
     // Chart
     $("chart-heading").textContent = `${s.ticker.trim() || "TICKER"} エントリー玉数・決済ライン軌道図`;
     $("chart-mode-chip").textContent = three ? "3段 (E1-E3) + L1" : "2段 (E1-E2) + L1";
-    renderScenarioChips(out);
+    renderScenarioSelect(out);
     $("chart-wrap").hidden = !out.isValid;
     $("chart-legend").hidden = !out.isValid;
     $("chart-empty").hidden = out.isValid;
@@ -745,23 +745,19 @@
     return list;
   }
 
-  function renderScenarioChips(out) {
-    const box = $("scenario-chips");
-    box.replaceChildren();
-    const three = state.useThreeEntries;
-    const list = scenarioList(out, three);
+  function renderScenarioSelect(out) {
+    const select = $("scenario-select");
+    const list = scenarioList(out, state.useThreeEntries);
     if (!list.some(([k]) => k === state.selectedChartScenario)) state.selectedChartScenario = "all";
-    list.forEach(([key, label]) => {
-      const accent = key === "all" ? "var(--primary)" : key === "l1" ? "var(--error)" : "var(--secondary)";
-      const chip = el("button", {
-        type: "button",
-        class: "scenario-chip mono",
-        "aria-pressed": String(state.selectedChartScenario === key),
-        onclick: () => { state.selectedChartScenario = key; update(); }
-      }, [label]);
-      chip.style.setProperty("--chip-accent", accent);
-      box.append(chip);
-    });
+    // 選択肢の文言（損益額）が変わった時だけ作り直す（開いている最中に閉じないように）
+    const sig = list.map(([k, l]) => k + l).join("|");
+    if (select.dataset.sig !== sig) {
+      select.replaceChildren(...list.map(([key, label]) => el("option", { value: key }, [label])));
+      select.dataset.sig = sig;
+    }
+    select.value = state.selectedChartScenario;
+    const key = state.selectedChartScenario;
+    select.style.setProperty("--chip-accent", key === "all" ? "var(--primary)" : key === "l1" ? "var(--error)" : "var(--secondary)");
   }
 
   // 平均単価ラインのアニメーション（Android版の spring アニメーション相当）
@@ -902,6 +898,10 @@
       clearManual();
       update();
     };
+    $("scenario-select").addEventListener("change", (e) => {
+      state.selectedChartScenario = e.target.value;
+      update();
+    });
     $("n-plus").addEventListener("click", () => stepN(1));
     $("n-minus").addEventListener("click", () => stepN(-1));
     // 入力欄では ↑↓ キーでも増減できる（数値入力の慣習）
