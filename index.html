@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest?v=3">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=2">
   <meta name="theme-color" content="#0c2d48">
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=9">
   <script>
     // テーマのちらつき防止（保存済みのテーマを先に適用）
     try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
@@ -166,7 +166,7 @@
             <div class="pnl-head">
               <div class="card-title" style="margin-bottom:2px">約定パターン別 Exit損益シミュレーション</div>
               <h3 class="card-heading">約定＆反発シナリオ（全6パターン）</h3>
-              <div class="hint">現実的に発生し得るExitパターンのみを算出・表示しています</div>
+              <div class="hint">米国株での目安：利確 +20% ／ 損切 -5%（仙人コメント）</div>
             </div>
             <div id="pattern-rows"></div>
 
@@ -262,8 +262,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=8"></script>
-  <script src="js/chart.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/engine.js?v=9"></script>
+  <script src="js/chart.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 </body>
 </html>

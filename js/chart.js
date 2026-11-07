@@ -230,7 +230,21 @@
     const leftLabels = [["E1 " + F.formatNumber(p.e1), "+" + out.e1Shares + "株"], ["E2 " + F.formatNumber(p.e2), "+" + out.e2Shares + "株"]];
     if (three) leftLabels.push(["E3 " + F.formatNumber(p.e3), "+" + out.e3Shares + "株"]);
     if (p.currentPrice > 0) leftLabels.push(["現在値", F.formatNumber(p.currentPrice)]);
-    const rightLabels = [["P1 " + F.formatNumber(p.p1), "+00,000,000"], ["P2 " + F.formatNumber(p.p2), "+00,000,000"], ["L1 " + F.formatNumber(p.l1), "損切ライン"]];
+    // Exit 損益（金額＋投資額に対する%）。分母はそのパターンの投資額
+    const st1 = out.stage1, st2 = out.stage2, st3 = out.stage3;
+    const b1 = st1 ? st1.cumulativeInvestment : 0;
+    const b2 = st2 ? st2.cumulativeInvestment : 0;
+    const b3 = st3 ? st3.cumulativeInvestment : out.totalInvestment;
+    const s1P1 = st1 ? st1.profitAtP1 : 0;
+    const s2P2 = st2 ? st2.profitAtP2 : 0;
+    const s2P1 = st2 ? st2.profitAtP1 : 0;
+    const s3P2 = st3 ? st3.profitAtP2 : out.allFilledProfitAtP2;
+    const s3P1 = st3 ? st3.profitAtP1 : out.allFilledProfitAtP1;
+    const s3L1 = st3 ? st3.lossAtL1 : out.allFilledLossAtL1;
+    const amt = F.formatSignedWithPercent;
+    const p1Sub = s === "e1p1" ? amt(s1P1, b1) : s === "e12p1" ? amt(s2P1, b2) : s === "allp1" ? amt(s3P1, b3) : "目標利確";
+    const p2Sub = s === "e12p2" ? amt(s2P2, b2) : s === "allp2" ? amt(s3P2, b3) : "安全利確";
+    const rightLabels = [["P1 " + F.formatNumber(p.p1), p1Sub], ["P2 " + F.formatNumber(p.p2), p2Sub], ["L1 " + F.formatNumber(p.l1), "損切ライン"]];
     const leftBadgeW = badgeWidth(ctx, k, leftLabels, 58);
     const rightBadgeW = badgeWidth(ctx, k, rightLabels, 60);
     const leftZoneEnd = leftBadgeW + 16;
@@ -357,28 +371,21 @@
     if (showE3Path) nodeDot(ctx, xE3, yE3, c.entry, c.surface, 7);
 
     // Exit 損益コールアウト（スタッガー配置）
-    const st1 = out.stage1, st2 = out.stage2, st3 = out.stage3;
-    const s1P1 = st1 ? st1.profitAtP1 : 0;
-    const s2P2 = st2 ? st2.profitAtP2 : 0;
-    const s2P1 = st2 ? st2.profitAtP1 : 0;
-    const s3P2 = st3 ? st3.profitAtP2 : out.allFilledProfitAtP2;
-    const s3P1 = st3 ? st3.profitAtP1 : out.allFilledProfitAtP1;
-    const s3L1 = st3 ? st3.lossAtL1 : out.allFilledLossAtL1;
     const bounds = { minX: leftZoneEnd, maxX: rightZoneStart };
 
-    function callout(x, y, tag, value, isAbove, isHi) {
+    function callout(x, y, tag, value, base, isAbove, isHi) {
       targetRing(ctx, x, y, value >= 0 ? c.profit : c.loss, c.text);
-      exitCallout(ctx, c, Object.assign({ x, y, tag, amount: F.formatSigned(value), isProfit: value >= 0, isAbove, isHi }, bounds));
+      exitCallout(ctx, c, Object.assign({ x, y, tag, amount: amt(value, base), isProfit: value >= 0, isAbove, isHi }, bounds));
     }
-    if (s === "all" || s === "e1p1") callout(xP1FromE1, yP1, "① E1→P1", s1P1, true, s === "e1p1");
-    if (s === "all" || s === "e12p2") callout(xP2FromE2, yP2, "② E1+2→P2", s2P2, false, s === "e12p2");
-    if (s === "all" || s === "e12p1") callout(xP1FromE2, yP1, "③ E1+2→P1", s2P1, false, s === "e12p1");
-    if (three && (s === "all" || s === "allp2")) callout(xP2FromE3, yP2, "④ 全約定→P2", s3P2, true, s === "allp2");
-    if (three && (s === "all" || s === "allp1")) callout(xP1FromE3, yP1, "⑤ 全約定→P1", s3P1, true, s === "allp1");
+    if (s === "all" || s === "e1p1") callout(xP1FromE1, yP1, "① E1→P1", s1P1, b1, true, s === "e1p1");
+    if (s === "all" || s === "e12p2") callout(xP2FromE2, yP2, "② E1+2→P2", s2P2, b2, false, s === "e12p2");
+    if (s === "all" || s === "e12p1") callout(xP1FromE2, yP1, "③ E1+2→P1", s2P1, b2, false, s === "e12p1");
+    if (three && (s === "all" || s === "allp2")) callout(xP2FromE3, yP2, "④ 全約定→P2", s3P2, b3, true, s === "allp2");
+    if (three && (s === "all" || s === "allp1")) callout(xP1FromE3, yP1, "⑤ 全約定→P1", s3P1, b3, true, s === "allp1");
     if (isL1Active) {
       exitCallout(ctx, c, Object.assign({
         x: xL1, y: yL1, tag: three ? "⑥ 全損切→L1" : "④ 全損切→L1",
-        amount: "-" + F.formatCurrency(s3L1), isProfit: false, isAbove: true, isHi: isL1Selected
+        amount: amt(-Math.abs(s3L1), b3), isProfit: false, isAbove: true, isHi: isL1Selected
       }, bounds));
     }
 
@@ -396,8 +403,6 @@
     if (showAvg123) rightInlineTag(ctx, c, w - 8, yAvg123, `E1〜E3平均 ${F.formatNumber(avg123)} (≤P2)`, c.average);
 
     const rightX = w - rightBadgeW - 8;
-    const p1Sub = s === "e1p1" ? F.formatSigned(s1P1) : s === "e12p1" ? F.formatSigned(s2P1) : s === "allp1" ? F.formatSigned(s3P1) : "目標利確";
-    const p2Sub = s === "e12p2" ? F.formatSigned(s2P2) : s === "allp2" ? F.formatSigned(s3P2) : "安全利確";
     levelBadge(ctx, c, rightX, yP1, "P1 " + F.formatNumber(p.p1), p1Sub, rightBadgeW, c.profit);
     levelBadge(ctx, c, rightX, yP2, "P2 " + F.formatNumber(p.p2), p2Sub, rightBadgeW, c.profit);
     levelBadge(ctx, c, rightX, yL1, "L1 " + F.formatNumber(p.l1), s !== "all" ? "損切実行" : "損切ライン", rightBadgeW, c.loss);

@@ -431,13 +431,28 @@
     return sign + new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.abs(rounded));
   }
 
+  // 投資額に対する損益率。整数%に丸め、符号を付ける（例: "+6%", "-12%"）。投資額が0なら空文字。
+  function formatPercent(value, base) {
+    if (!(base > 0) || !isFinite(value)) return "";
+    const pct = roundHalfEven(Math.abs(value) / base * 100);
+    return (value < 0 && pct > 0 ? "-" : "+") + pct + "%";
+  }
+
+  // 符号付き金額＋損益率（例: "+148(+6%)", "-992(-12%)"）。損切は value に負の値を渡す。
+  function formatSignedWithPercent(value, base) {
+    const pct = formatPercent(value, base);
+    return formatSigned(value) + (pct ? "(" + pct + ")" : "");
+  }
+
   const api = {
     DEFAULT_BIAS: DEFAULT_BIAS,
     defaultInput: defaultInput,
     calculate: calculate,
     formatNumber: formatNumber,
     formatCurrency: formatCurrency,
-    formatSigned: formatSigned
+    formatSigned: formatSigned,
+    formatPercent: formatPercent,
+    formatSignedWithPercent: formatSignedWithPercent
   };
 
   if (typeof module !== "undefined" && module.exports) {

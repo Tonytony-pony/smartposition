@@ -677,8 +677,9 @@
     });
   }
 
-  function exitCell(label, price, value, note, isLossCell) {
-    const amount = isLossCell ? "-" + E.formatCurrency(value) : E.formatSigned(value);
+  // base = その約定パターンの投資額（損益率% の分母）
+  function exitCell(label, price, value, note, isLossCell, base) {
+    const amount = E.formatSignedWithPercent(isLossCell ? -Math.abs(value) : value, base);
     const negative = isLossCell || value < 0;
     return el("div", { class: "exit-cell" + (negative ? " loss" : "") }, [
       el("div", { class: "exit-top" }, [el("b", { text: label }), el("span", { class: "mono", text: "@" + E.formatNumber(price) })]),
@@ -702,45 +703,49 @@
       el("div", { class: "pattern-row" }, [
         el("div", { class: "pattern-title", text: "E1 → P1" }),
         el("div", { class: "pattern-meta mono", text: stageMeta(out.stage1) }),
-        el("div", { class: "exit-cells" }, [exitCell("P1 利確", input.p1Price, out.stage1.profitAtP1, "第1反発で全利確（※下落時はE2約定へ移行）")])
+        el("div", { class: "exit-cells" }, [exitCell("P1 利確", input.p1Price, out.stage1.profitAtP1, "第1反発で全利確（※下落時はE2約定へ移行）", false, out.stage1.cumulativeInvestment)])
       ]),
       el("div", { class: "pattern-row" }, [
         el("div", { class: "pattern-title", text: "E1+E2 → P1 または P2" }),
         el("div", { class: "pattern-meta mono", text: stageMeta(out.stage2) }),
         el("div", { class: "exit-cells" }, [
-          exitCell("P2 利確", input.p2Price, out.stage2.profitAtP2, "安全ターゲット (Avg≤P2)"),
-          exitCell("P1 利確", input.p1Price, out.stage2.profitAtP1, "全利確ストレッチ")
+          exitCell("P2 利確", input.p2Price, out.stage2.profitAtP2, "安全ターゲット (Avg≤P2)", false, out.stage2.cumulativeInvestment),
+          exitCell("P1 利確", input.p1Price, out.stage2.profitAtP1, "全利確ストレッチ", false, out.stage2.cumulativeInvestment)
         ])
       ]),
       el("div", { class: "pattern-row" }, [
         el("div", { class: "pattern-title", text: three ? "E1+E2+E3 → P1 または P2 または L1" : "E1+E2 (全約定) → P1 または P2 または L1" }),
         el("div", { class: "pattern-meta mono", text: stageMeta(final) }),
         el("div", { class: "exit-cells" }, [
-          exitCell("P2 利確", input.p2Price, final.profitAtP2, "第3反発利確"),
-          exitCell("P1 利確", input.p1Price, final.profitAtP1, "全利確"),
-          exitCell("L1 損切", input.l1Price, final.lossAtL1, "許容内", true)
+          exitCell("P2 利確", input.p2Price, final.profitAtP2, "第3反発利確", false, final.cumulativeInvestment),
+          exitCell("P1 利確", input.p1Price, final.profitAtP1, "全利確", false, final.cumulativeInvestment),
+          exitCell("L1 損切", input.l1Price, final.lossAtL1, "許容内", true, final.cumulativeInvestment)
         ])
       ])
     );
   }
 
   function scenarioList(out, three) {
+    const b1 = out.stage1 ? out.stage1.cumulativeInvestment : 0;
+    const b2 = out.stage2 ? out.stage2.cumulativeInvestment : 0;
+    const b3 = out.stage3 ? out.stage3.cumulativeInvestment : out.totalInvestment;
     const s1 = out.stage1 ? out.stage1.profitAtP1 : 0;
     const s2p2 = out.stage2 ? out.stage2.profitAtP2 : 0;
     const s2p1 = out.stage2 ? out.stage2.profitAtP1 : 0;
     const s3p2 = out.stage3 ? out.stage3.profitAtP2 : out.allFilledProfitAtP2;
     const s3p1 = out.stage3 ? out.stage3.profitAtP1 : out.allFilledProfitAtP1;
     const s3l1 = out.stage3 ? out.stage3.lossAtL1 : out.allFilledLossAtL1;
+    const amt = E.formatSignedWithPercent;
     const list = [
       ["all", "全6パターン表示"],
-      ["e1p1", `① E1→P1 (${E.formatSigned(s1)})`],
-      ["e12p2", `② E1+2→P2 (${E.formatSigned(s2p2)})`],
-      ["e12p1", `③ E1+2→P1 (${E.formatSigned(s2p1)})`]
+      ["e1p1", `① E1→P1  ${amt(s1, b1)}`],
+      ["e12p2", `② E1+2→P2  ${amt(s2p2, b2)}`],
+      ["e12p1", `③ E1+2→P1  ${amt(s2p1, b2)}`]
     ];
     if (three) {
-      list.push(["allp2", `④ 全約定→P2 (${E.formatSigned(s3p2)})`], ["allp1", `⑤ 全約定→P1 (${E.formatSigned(s3p1)})`], ["l1", `⑥ 全損切→L1 (-${E.formatCurrency(s3l1)})`]);
+      list.push(["allp2", `④ 全約定→P2  ${amt(s3p2, b3)}`], ["allp1", `⑤ 全約定→P1  ${amt(s3p1, b3)}`], ["l1", `⑥ 全損切→L1  ${amt(-Math.abs(s3l1), b3)}`]);
     } else {
-      list.push(["l1", `④ 全損切→L1 (-${E.formatCurrency(s3l1)})`]);
+      list.push(["l1", `④ 全損切→L1  ${amt(-Math.abs(s3l1), b3)}`]);
     }
     return list;
   }

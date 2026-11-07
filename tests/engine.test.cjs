@@ -155,3 +155,14 @@ test("数値フォーマット規約", () => {
   assert.equal(E.formatNumber(1234.5), "1,234.5");
   assert.equal(E.formatNumber(600), "600");
 });
+
+test("損益率(%)は投資額に対する整数%で、金額の後ろに括弧で付く", () => {
+  assert.equal(E.formatPercent(148, 2296), "+6%");
+  assert.equal(E.formatPercent(-992, 7000), "-14%");
+  assert.equal(E.formatPercent(0, 1000), "+0%");
+  assert.equal(E.formatPercent(-1, 100000), "+0%");
+  assert.equal(E.formatPercent(100, 0), "");
+  assert.equal(E.formatSignedWithPercent(148, 2296), "+148(+6%)");
+  assert.equal(E.formatSignedWithPercent(-992, 7000), "-992(-14%)");
+  assert.equal(E.formatSignedWithPercent(500, 0), "+500");
+});
