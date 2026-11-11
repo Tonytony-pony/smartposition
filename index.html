@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest?v=3">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=2">
   <meta name="theme-color" content="#0c2d48">
-  <link rel="stylesheet" href="css/style.css?v=9">
+  <link rel="stylesheet" href="css/style.css?v=10">
   <script>
     // テーマのちらつき防止（保存済みのテーマを先に適用）
     try { document.documentElement.dataset.theme = localStorage.getItem("smartposition.theme") || "dark"; } catch (e) {}
@@ -45,8 +45,15 @@
           <section class="card" id="risk-card">
             <div class="card-title">INPUT 1 - 許容損失額</div>
             <div class="sub-box">
-              <div class="label">本トレードにおける損失許容額 (総額 ÷ (3n+n))</div>
-              <div class="big-value mono" id="trade-max-loss-value">0</div>
+              <div class="label-row">
+                <label class="label" for="trade-max-loss-value" id="trade-loss-label">本トレードにおける損失許容額 (総額 ÷ (3n+n))</label>
+                <span class="manual-badge" id="trade-loss-badge" hidden>手入力</span>
+              </div>
+              <input type="text" class="big-input mono" id="trade-max-loss-value" inputmode="decimal" autocomplete="off" aria-describedby="trade-loss-note">
+              <div class="auto-row">
+                <span class="hint" id="trade-loss-note"></span>
+                <button type="button" class="text-btn small" id="trade-loss-auto" hidden>↺ 自動計算に戻す</button>
+              </div>
               <div class="progress" id="loss-progress"><div class="bar"></div></div>
               <div class="kv-row">
                 <span class="label">計算上のL1損失額</span>
@@ -159,7 +166,7 @@
                 <h2 class="card-heading" id="alloc-heading"></h2>
                 <span class="manual-badge" id="manual-badge" hidden>手動調整中</span>
               </div>
-              <button type="button" class="text-btn" id="reset-optimal" hidden>⟳ 最適値に戻す</button>
+              <button type="button" class="text-btn" id="reset-optimal" hidden>↺ 自動計算に戻す</button>
             </div>
             <div class="share-list" id="share-list"></div>
 
@@ -262,8 +269,8 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=9"></script>
-  <script src="js/chart.js?v=9"></script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/engine.js?v=10"></script>
+  <script src="js/chart.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
 </body>
 </html>

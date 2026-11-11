@@ -166,3 +166,22 @@ test("損益率(%)は投資額に対する整数%で、金額の後ろに括弧�
   assert.equal(E.formatSignedWithPercent(-992, 7000), "-992(-14%)");
   assert.equal(E.formatSignedWithPercent(500, 0), "+500");
 });
+
+test("本トレードの許容損失額を手入力すると総額÷4nより優先され、不変条件も保たれる", () => {
+  const auto = E.calculate({ totalMaxLoss: 4000 });
+  assert.equal(auto.tradeMaxLoss, 1000);
+  assert.equal(auto.isTradeMaxLossManual, false);
+
+  const out = E.calculate({ totalMaxLoss: 4000, tradeMaxLossOverride: 2500 });
+  assert.equal(out.isValid, true);
+  assert.equal(out.isTradeMaxLossManual, true);
+  assert.equal(out.tradeMaxLoss, 2500);
+  assert.equal(out.autoTradeMaxLoss, 1000);
+  assert.ok(out.allFilledLossAtL1 <= 2500 + 1e-6);
+  assert.ok(out.e1Shares + out.e2Shares + out.e3Shares > auto.e1Shares + auto.e2Shares + auto.e3Shares);
+  assert.ok(out.stage3.averageCost <= 571 + 1e-9);
+
+  // 手入力時は総額が0でもエラーにしない。手入力値が0ならエラー
+  assert.equal(E.calculate({ totalMaxLoss: 0, tradeMaxLossOverride: 1000 }).isValid, true);
+  assert.equal(E.calculate({ tradeMaxLossOverride: 0 }).isValid, false);
+});

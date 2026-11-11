@@ -27,7 +27,8 @@
       p2MarginBias: DEFAULT_BIAS,
       manualE1Shares: null,
       manualE2Shares: null,
-      manualE3Shares: null
+      manualE3Shares: null,
+      tradeMaxLossOverride: null
     };
   }
 
@@ -64,11 +65,18 @@
     const input = Object.assign(defaultInput(), rawInput || {});
     const safeN = Math.max(1, input.n);
     const divisor = 3 * safeN + safeN; // 3n + n = 4n
-    const tradeMaxLoss = Math.max(0, input.totalMaxLoss / divisor);
+    const autoTradeMaxLoss = Math.max(0, input.totalMaxLoss / divisor);
+    // 本トレードの許容損失額を手入力した時はそれを使う（null = 自動計算）
+    const isTradeMaxLossManual = input.tradeMaxLossOverride != null;
+    const tradeMaxLoss = isTradeMaxLossManual ? Math.max(0, input.tradeMaxLossOverride) : autoTradeMaxLoss;
     const errors = [];
     const warnings = [];
 
-    if (!(input.totalMaxLoss > 0)) {
+    if (isTradeMaxLossManual) {
+      if (!(input.tradeMaxLossOverride > 0)) {
+        errors.push("本トレードの損失許容額には0より大きい数値を入力してください。");
+      }
+    } else if (!(input.totalMaxLoss > 0)) {
       errors.push("総額の損失許容額には0より大きい数値を入力してください。");
     }
     if (input.n < 1) {
@@ -109,6 +117,8 @@
         n: safeN,
         divisor: divisor,
         tradeMaxLoss: tradeMaxLoss,
+        autoTradeMaxLoss: autoTradeMaxLoss,
+        isTradeMaxLossManual: isTradeMaxLossManual,
         e1Shares: 0, e2Shares: 0, e3Shares: 0,
         totalShares: 0, totalInvestment: 0,
         e1LossPerShare: 0, e2LossPerShare: 0, e3LossPerShare: 0,
@@ -244,6 +254,8 @@
       n: safeN,
       divisor: divisor,
       tradeMaxLoss: tradeMaxLoss,
+      autoTradeMaxLoss: autoTradeMaxLoss,
+      isTradeMaxLossManual: isTradeMaxLossManual,
       e1Shares: n1,
       e2Shares: n2,
       e3Shares: n3,

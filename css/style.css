@@ -174,6 +174,24 @@ main { flex: 1; overflow-y: auto; }
 
 /* Risk card */
 .big-value { font-size: 30px; font-weight: 800; color: var(--secondary); margin: 2px 0 10px; }
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.label-row .manual-badge { margin-top: 0; }
+/* 本トレードの許容損失額: 大きな数字のまま、タップすると手入力できる */
+.sub-box input.big-input {
+  width: 100%;
+  margin: 4px 0 4px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  border: 1.2px dashed var(--outline);
+  background: transparent;
+  color: var(--secondary);
+  font-size: 30px;
+  font-weight: 800;
+}
+.sub-box input.big-input:focus { border-style: solid; border-color: var(--primary); background: var(--surface-variant); }
+.sub-box input.big-input.manual { color: var(--tertiary); border-style: solid; border-color: var(--tertiary); }
+.auto-row { display: flex; align-items: center; justify-content: space-between; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.auto-row .hint { flex: 1 1 180px; }
 .progress { height: 8px; border-radius: 99px; background: var(--outline-variant); overflow: hidden; }
 .progress .bar { height: 100%; width: 0; border-radius: 99px; background: var(--secondary); transition: width 0.25s ease; }
 .progress.over .bar { background: var(--error); }
@@ -350,6 +368,20 @@ input.ticker { text-transform: uppercase; font-weight: 700; }
 }
 .round-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .share-value { font-size: 22px; font-weight: 800; color: var(--primary); min-width: 56px; text-align: right; }
+/* 株数: 直接入力もできる（±ボタンと併用） */
+.share-stepper input.share-input {
+  width: 72px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1.2px solid var(--outline);
+  background: var(--surface-variant);
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: right;
+}
+.share-stepper input.share-input:focus { border-color: var(--primary); }
+.share-stepper input.share-input.manual { color: var(--tertiary); border-color: var(--tertiary); }
 .share-unit { font-size: 12px; color: var(--on-surface-variant); }
 .avg-row {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;

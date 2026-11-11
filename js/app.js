@@ -61,6 +61,7 @@
       manualE1Shares: null,
       manualE2Shares: null,
       manualE3Shares: null,
+      tradeMaxLossText: null, // null = 総額 ÷ (3n+n) で自動計算、文字列 = 手入力
       selectedChartScenario: "all",
       searchQuery: "",
       statusBannerMessage: null,
@@ -72,7 +73,7 @@
 
   const DRAFT_FIELDS = ["editingPlanId", "ticker", "note", "totalMaxLossText", "nText", "currentPriceText", "useThreeEntries",
     "p1PriceText", "e1PriceText", "p2PriceText", "e2PriceText", "e3PriceText", "l1PriceText", "p2MarginBias",
-    "manualE1Shares", "manualE2Shares", "manualE3Shares"];
+    "manualE1Shares", "manualE2Shares", "manualE3Shares", "tradeMaxLossText"];
 
   // 下書きの形式。2 = スライダー既定値が 1:2:3（0.5）になった版、3 = 総額の既定値が 4000 になった版。
   const DRAFT_MODEL = 3;
@@ -148,7 +149,8 @@
       p2MarginBias: s.p2MarginBias,
       manualE1Shares: s.manualE1Shares,
       manualE2Shares: s.manualE2Shares,
-      manualE3Shares: s.manualE3Shares
+      manualE3Shares: s.manualE3Shares,
+      tradeMaxLossOverride: s.tradeMaxLossText == null ? null : (toNum(s.tradeMaxLossText) ?? 0)
     };
   }
 
@@ -178,6 +180,7 @@
       totalMaxLoss: out.totalMaxLoss,
       n: out.n,
       tradeMaxLoss: out.tradeMaxLoss,
+      tradeMaxLossManual: !!out.isTradeMaxLossManual,
       currentPrice: input.currentPrice,
       useThreeEntries: input.useThreeEntries,
       p1Price: input.p1Price,
@@ -253,9 +256,30 @@
     update();
   }
 
+  /** 株数を直接入力した時（空欄や数字以外なら元の表示に戻す） */
+  function setShares(level, text) {
+    if (!output.isValid) return;
+    const v = parseInt(sanitizeInt(text), 10);
+    if (Number.isFinite(v)) {
+      const cur = [state.manualE1Shares ?? output.e1Shares, state.manualE2Shares ?? output.e2Shares, state.manualE3Shares ?? output.e3Shares];
+      cur[level - 1] = Math.max(0, v);
+      state.manualE1Shares = cur[0];
+      state.manualE2Shares = cur[1];
+      state.manualE3Shares = cur[2];
+    }
+    update();
+  }
+
   function resetToOptimalShares() {
     clearManual();
-    state.statusBannerMessage = "最適株数に再計算しました";
+    state.statusBannerMessage = "株数を自動計算に戻しました";
+    update();
+  }
+
+  function setTradeMaxLossText(text) {
+    state.tradeMaxLossText = text;
+    clearManual();
+    state.statusBannerMessage = null;
     update();
   }
 
@@ -278,6 +302,7 @@
       manualE1Shares: plan.e1Shares,
       manualE2Shares: plan.e2Shares,
       manualE3Shares: plan.useThreeEntries ? plan.e3Shares : null,
+      tradeMaxLossText: plan.tradeMaxLossManual && typeof plan.tradeMaxLoss === "number" ? formatInputDouble(plan.tradeMaxLoss) : null,
       selectedChartScenario: "all",
       statusBannerMessage: `${plan.ticker} のトレード計画を読み込みました`
     });
@@ -561,7 +586,17 @@
     $("slider-dock").hidden = !(calc && out.isValid);
 
     // INPUT 1
-    $("trade-max-loss-value").textContent = E.formatCurrency(out.tradeMaxLoss);
+    const tradeInput = $("trade-max-loss-value");
+    const manualLoss = !!out.isTradeMaxLossManual;
+    if (document.activeElement !== tradeInput) tradeInput.value = E.formatCurrency(out.tradeMaxLoss);
+    tradeInput.classList.toggle("manual", manualLoss);
+    $("trade-loss-label").textContent = manualLoss ? "本トレードにおける損失許容額（手入力）" : "本トレードにおける損失許容額 (総額 ÷ (3n+n))";
+    $("trade-loss-badge").hidden = !manualLoss;
+    $("trade-loss-auto").hidden = !manualLoss;
+    const autoCalc = `${E.formatCurrency(out.totalMaxLoss)} ÷ ${out.divisor} = ${E.formatCurrency(out.autoTradeMaxLoss)}`;
+    $("trade-loss-note").textContent = manualLoss
+      ? `自動計算なら ${autoCalc}`
+      : `自動計算: ${autoCalc}（数字をタップすると手入力できます）`;
     $("actual-l1-loss-value").textContent = "-" + E.formatCurrency(out.allFilledLossAtL1);
     const isOver = out.allFilledLossAtL1 > out.tradeMaxLoss + 1e-6;
     const progress = out.tradeMaxLoss > 0 ? Math.min(out.allFilledLossAtL1 / out.tradeMaxLoss, 1) : 0;
@@ -577,7 +612,8 @@
     $("input1-body").hidden = !s.input1Expanded;
     $("divisor-hint").textContent =
       `nを増やすほど、1回のトレードで許す損失額が小さくなります。` +
-      `いま: ${E.formatCurrency(out.totalMaxLoss)} ÷ ${out.divisor}（3n+n）= ${E.formatCurrency(out.tradeMaxLoss)}`;
+      `いま: ${E.formatCurrency(out.totalMaxLoss)} ÷ ${out.divisor}（3n+n）= ${E.formatCurrency(out.autoTradeMaxLoss)}` +
+      (manualLoss ? "（現在は上で手入力した許容損失額を使っています）" : "");
     const nMin = (parseInt(s.nText, 10) || 1) <= 1;
     $("n-minus").disabled = nMin;
     $("n-minus").title = nMin ? "nは1が最小です" : "nを1減らす";
@@ -637,6 +673,23 @@
     wbox.hidden = out.warnings.length === 0;
   }
 
+  function shareInput(r, out) {
+    const input = el("input", {
+      type: "text",
+      class: "share-input mono" + (out.isManualOverride ? " manual" : ""),
+      inputmode: "numeric",
+      autocomplete: "off",
+      "aria-label": `${r.badge} 株数（直接入力できます）`,
+      "data-share-level": String(r.level),
+      onchange: (e) => setShares(r.level, e.target.value),
+      onkeydown: (e) => { if (e.key === "Enter") e.target.blur(); },
+      onfocus: (e) => e.target.select()
+    });
+    input.value = String(r.shares);
+    input.disabled = !out.isValid;
+    return input;
+  }
+
   function renderShares(out, input) {
     const list = $("share-list");
     list.replaceChildren();
@@ -660,7 +713,7 @@
           ]),
           el("div", { class: "share-stepper" }, [
             minus,
-            el("span", { class: "share-value mono", text: String(r.shares) }),
+            shareInput(r, out),
             el("span", { class: "share-unit", text: "株" }),
             plus
           ])
@@ -932,6 +985,25 @@
       update();
     });
     $("reset-optimal").addEventListener("click", resetToOptimalShares);
+    const tradeInput = $("trade-max-loss-value");
+    tradeInput.addEventListener("focus", () => {
+      // 編集しやすいようにカンマを外した数字にする
+      tradeInput.value = state.tradeMaxLossText != null ? state.tradeMaxLossText : formatInputDouble(Math.round(output.tradeMaxLoss * 100) / 100);
+      tradeInput.select();
+    });
+    tradeInput.addEventListener("input", () => {
+      const clean = sanitizeDecimal(tradeInput.value);
+      if (clean !== tradeInput.value) tradeInput.value = clean;
+      setTradeMaxLossText(clean);
+    });
+    tradeInput.addEventListener("keydown", (e) => { if (e.key === "Enter") tradeInput.blur(); });
+    tradeInput.addEventListener("blur", () => render());
+    $("trade-loss-auto").addEventListener("click", () => {
+      state.tradeMaxLossText = null;
+      clearManual();
+      state.statusBannerMessage = "許容損失額を自動計算（総額 ÷ (3n+n)）に戻しました";
+      update();
+    });
     $("save-plan").addEventListener("click", saveCurrentPlan);
     $("duplicate-plan").addEventListener("click", startNewPlanAsCopy);
     $("theme-toggle").addEventListener("click", () => {
